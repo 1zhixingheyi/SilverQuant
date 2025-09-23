@@ -1,0 +1,63 @@
+{
+  "description": "精简版MCP服务器配置 - 专为lianghua量化交易系统v2优化",
+  "version": "2.0.0",
+  "mcpServers": {
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking",
+        "--language",
+        "zh-CN"
+      ],
+      "env": {
+        "LANG": "zh_CN.UTF-8",
+        "LC_ALL": "zh_CN.UTF-8"
+      },
+      "priority": "high",
+      "description": "结构化思维分析和推理"
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@executeautomation/playwright-mcp-server"
+      ],
+      "priority": "medium",
+      "description": "高级浏览器自动化测试"
+    },
+    "serena": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--project",
+        "E:\\AI\\mcp\\serena",
+        "serena-mcp-server",
+        "--context",
+        "ide-assistant",
+        "--project",
+        "E:\\AI\\code_2\\lianghua\\lianghuakaifa_v3_CCPM"
+      ],
+      "priority": "high",
+      "description": "Serena智能代码助手 - 支持符号级编辑和LSP集成"
+    }
+  },
+  "settings": {
+    "max_concurrent_servers": 6,
+    "memory_limit_mb": 1000,
+    "auto_cleanup": true,
+    "restart_on_failure": true,
+    "log_level": "INFO"
+  },
+  "monitoring": {
+    "enabled": true,
+    "check_interval_seconds": 300,
+    "memory_threshold_mb": 150,
+    "process_count_alert": 12,
+    "auto_restart_failed": true
+  },
+  "backup": {
+    "full_config_backup": "mcp_configs_backup/claude_config_backup_20250915_215808.json",
+    "restore_command": "python process_monitor.py restore"
+  }
+}
