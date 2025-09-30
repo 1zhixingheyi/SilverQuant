@@ -1,0 +1,58 @@
+{
+  "description": "精简版MCP服务器配置 - 专为lianghua量化交易系统v2优化",
+  "version": "2.0.0",
+  "mcpServers": {
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking",
+        "--language",
+        "zh-CN"
+      ],
+      "env": {
+        "LANG": "zh_CN.UTF-8",
+        "LC_ALL": "zh_CN.UTF-8"
+      },
+      "priority": "high",
+      "description": "结构化思维分析和推理"
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@executeautomation/playwright-mcp-server"
+      ],
+      "priority": "medium",
+      "description": "高级浏览器自动化测试"
+    },
+    "serena": {
+      "command": "uvx",
+      "args": [
+        "serena-mcp-server",
+        "--context",
+        "ide-assistant"
+      ],
+      "priority": "high",
+      "description": "Serena智能代码助手 - 自动使用当前工作目录作为项目根"
+    }
+  },
+  "settings": {
+    "max_concurrent_servers": 6,
+    "memory_limit_mb": 1000,
+    "auto_cleanup": true,
+    "restart_on_failure": true,
+    "log_level": "INFO"
+  },
+  "monitoring": {
+    "enabled": true,
+    "check_interval_seconds": 300,
+    "memory_threshold_mb": 150,
+    "process_count_alert": 12,
+    "auto_restart_failed": true
+  },
+  "backup": {
+    "full_config_backup": "mcp_configs_backup/claude_config_backup_20250915_215808.json",
+    "restore_command": "python process_monitor.py restore"
+  }
+}
