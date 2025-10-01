@@ -1,14 +1,16 @@
 from trader.seller_components import *
+from storage.base_store import BaseDataStore
+from typing import Optional
 
 
 class GroupSellers:
     def __init__(self):
         pass
 
-    def group_init(self, strategy_name, delegate, parameters):
+    def group_init(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
         for parent in self.__class__.__bases__:
             if parent.__name__ != 'GroupSellers':
-                parent.__init__(self, strategy_name, delegate, parameters)
+                parent.__init__(self, strategy_name, delegate, parameters, data_store)
         print('>> 初始化完成')
 
     def group_check_sell(
@@ -32,9 +34,9 @@ class GroupSellers:
 
 # 传统卖出
 class ClassicGroupSeller(GroupSellers, HardSeller, FallSeller, ReturnSeller):
-    def __init__(self, strategy_name, delegate, parameters):
+    def __init__(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
         super().__init__()
-        self.group_init(strategy_name, delegate, parameters)
+        self.group_init(strategy_name, delegate, parameters, data_store)
 
     def check_sell(self, code, quote, curr_date, curr_time, position, held_day, max_price, history, ticks, extra):
         self.group_check_sell(code, quote, curr_date, curr_time, position, held_day, max_price, history, ticks, extra)
@@ -42,9 +44,9 @@ class ClassicGroupSeller(GroupSellers, HardSeller, FallSeller, ReturnSeller):
 
 # 均线卖出
 class ClassicMAGroupSeller(GroupSellers, HardSeller, FallSeller, ReturnSeller, MASeller):
-    def __init__(self, strategy_name, delegate, parameters):
+    def __init__(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
         super().__init__()
-        self.group_init(strategy_name, delegate, parameters)
+        self.group_init(strategy_name, delegate, parameters, data_store)
 
     def check_sell(self, code, quote, curr_date, curr_time, position, held_day, max_price, history, ticks, extra):
         self.group_check_sell(code, quote, curr_date, curr_time, position, held_day, max_price, history, ticks, extra)
@@ -52,9 +54,9 @@ class ClassicMAGroupSeller(GroupSellers, HardSeller, FallSeller, ReturnSeller, M
 
 # 监控卖出
 class ShieldGroupSeller(GroupSellers, HardSeller, FallSeller):
-    def __init__(self, strategy_name, delegate, parameters):
+    def __init__(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
         super().__init__()
-        self.group_init(strategy_name, delegate, parameters)
+        self.group_init(strategy_name, delegate, parameters, data_store)
 
     def check_sell(self, code, quote, curr_date, curr_time, position, held_day, max_price, history, ticks, extra):
         self.group_check_sell(code, quote, curr_date, curr_time, position, held_day, max_price, history, ticks, extra)
@@ -62,9 +64,9 @@ class ShieldGroupSeller(GroupSellers, HardSeller, FallSeller):
 
 # 问财卖出
 class WencaiGroupSeller(GroupSellers, HardSeller, FallSeller, ReturnSeller, SwitchSeller):
-    def __init__(self, strategy_name, delegate, parameters):
+    def __init__(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
         super().__init__()
-        self.group_init(strategy_name, delegate, parameters)
+        self.group_init(strategy_name, delegate, parameters, data_store)
 
     def check_sell(self, code, quote, curr_date, curr_time, position, held_day, max_price, history, ticks, extra):
         self.group_check_sell(code, quote, curr_date, curr_time, position, held_day, max_price, history, ticks, extra)
@@ -72,9 +74,9 @@ class WencaiGroupSeller(GroupSellers, HardSeller, FallSeller, ReturnSeller, Swit
 
 # Deepseek
 class DeepseekGroupSeller(GroupSellers, HardSeller, SwitchSeller, FallSeller):
-    def __init__(self, strategy_name, delegate, parameters):
+    def __init__(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
         super().__init__()
-        self.group_init(strategy_name, delegate, parameters)
+        self.group_init(strategy_name, delegate, parameters, data_store)
 
     def check_sell(self, code, quote, curr_date, curr_time, position, held_day, max_price, history, ticks, extra):
         self.group_check_sell(code, quote, curr_date, curr_time, position, held_day, max_price, history, ticks, extra)
@@ -82,9 +84,9 @@ class DeepseekGroupSeller(GroupSellers, HardSeller, SwitchSeller, FallSeller):
 
 # 龙抬头
 class LTT2GroupSeller(GroupSellers, HardSeller, OpenDaySeller, SwitchSeller, ReturnSeller, CCISeller, MASeller):
-    def __init__(self, strategy_name, delegate, parameters):
+    def __init__(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
         super().__init__()
-        self.group_init(strategy_name, delegate, parameters)
+        self.group_init(strategy_name, delegate, parameters, data_store)
 
     def check_sell(self, code, quote, curr_date, curr_time, position, held_day, max_price, history, ticks, extra):
         self.group_check_sell(code, quote, curr_date, curr_time, position, held_day, max_price, history, ticks, extra)
@@ -92,9 +94,9 @@ class LTT2GroupSeller(GroupSellers, HardSeller, OpenDaySeller, SwitchSeller, Ret
 
 # 三倍量突破
 class T3BLGroupSeller(GroupSellers, HardSeller, SwitchSeller, FallSeller, MASeller):
-    def __init__(self, strategy_name, delegate, parameters):
+    def __init__(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
         super().__init__()
-        self.group_init(strategy_name, delegate, parameters)
+        self.group_init(strategy_name, delegate, parameters, data_store)
 
     def check_sell(self, code, quote, curr_date, curr_time, position, held_day, max_price, history, ticks, extra):
         self.group_check_sell(code, quote, curr_date, curr_time, position, held_day, max_price, history, ticks, extra)
@@ -102,9 +104,9 @@ class T3BLGroupSeller(GroupSellers, HardSeller, SwitchSeller, FallSeller, MASell
 
 # 平台绿缩
 class PTLSGroupSeller(GroupSellers, HardSeller, UppingBlocker, FallSeller, ReturnSeller, SwitchSeller, MASeller):
-    def __init__(self, strategy_name, delegate, parameters):
+    def __init__(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
         super().__init__()
-        self.group_init(strategy_name, delegate, parameters)
+        self.group_init(strategy_name, delegate, parameters, data_store)
 
     def check_sell(self, code, quote, curr_date, curr_time, position, held_day, max_price, history, ticks, extra):
         self.group_check_sell(code, quote, curr_date, curr_time, position, held_day, max_price, history, ticks, extra)
@@ -112,9 +114,9 @@ class PTLSGroupSeller(GroupSellers, HardSeller, UppingBlocker, FallSeller, Retur
 
 # 金雀突破
 class JQTPGroupSeller(GroupSellers, FallSeller, DropSeller, HardSeller, WRSeller, ReturnSeller):
-    def __init__(self, strategy_name, delegate, parameters):
+    def __init__(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
         super().__init__()
-        self.group_init(strategy_name, delegate, parameters)
+        self.group_init(strategy_name, delegate, parameters, data_store)
 
     def check_sell(self, code, quote, curr_date, curr_time, position, held_day, max_price, history, ticks, extra):
         self.group_check_sell(code, quote, curr_date, curr_time, position, held_day, max_price, history, ticks, extra)

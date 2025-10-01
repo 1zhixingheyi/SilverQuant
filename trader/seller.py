@@ -8,12 +8,14 @@ from xtquant.xttype import XtPosition
 
 from delegate.base_delegate import BaseDelegate
 from tools.utils_basic import get_limit_down_price
+from storage.base_store import BaseDataStore
 
 
 class BaseSeller:
-    def __init__(self, strategy_name: str, delegate: BaseDelegate, parameters):
+    def __init__(self, strategy_name: str, delegate: BaseDelegate, parameters, data_store: Optional[BaseDataStore] = None):
         self.strategy_name = strategy_name
         self.delegate = delegate
+        self.data_store = data_store  # 数据存储实例 (可选)
         self.order_premium = parameters.order_premium if hasattr(parameters, 'order_premium') else 0.03
 
     def order_sell(self, code, quote, volume, remark, log=True) -> None:
@@ -99,8 +101,8 @@ class BaseSeller:
 
 
 class LimitedSeller(BaseSeller):
-    def __init__(self, strategy_name: str, delegate: BaseDelegate, parameters):
-        super().__init__(strategy_name, delegate, parameters)
+    def __init__(self, strategy_name: str, delegate: BaseDelegate, parameters, data_store: Optional[BaseDataStore] = None):
+        super().__init__(strategy_name, delegate, parameters, data_store)
         self.order_percent = parameters.order_percent if hasattr(parameters, 'order_percent') else 1.00
 
     def order_sell(self, code, quote, volume, remark, log=True) -> None:
