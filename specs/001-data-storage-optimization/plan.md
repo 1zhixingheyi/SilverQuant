@@ -130,6 +130,7 @@ run_*.py                        # 14个入口文件 (需要修改初始化)
 # New structure (to be created by /tasks)
 storage/                        # NEW 数据存储模块
 ├── __init__.py
+├── config.py                   # 配置管理 (从credentials.py组装配置) ✓
 ├── base_store.py               # BaseDataStore抽象类
 ├── file_store.py               # 文件存储实现 (包装utils_cache)
 ├── redis_store.py              # Redis存储实现
@@ -155,8 +156,8 @@ tests/                          # NEW 测试目录
     └── test_base_store_contract.py
 
 scripts/                        # NEW 运维脚本
-├── init_database.py            # MySQL表初始化
-├── init_clickhouse.py          # ClickHouse表初始化
+├── health_check.py             # 数据库健康检查 (返回退出码) ✓
+├── init_clickhouse.py          # ClickHouse表初始化 ✓
 ├── migrate_held_days.py        # 迁移持仓状态
 ├── migrate_trade_records.py   # 迁移交易记录
 ├── migrate_kline.py            # 迁移K线数据
@@ -166,9 +167,11 @@ scripts/                        # NEW 运维脚本
 └── monitor_performance.py     # 性能监控
 
 deployment/                     # NEW 部署配置
-├── docker-compose-full.yml     # 完整版 (Redis + MySQL + ClickHouse)
-├── docker-compose-mvp.yml      # MVP版 (Redis + ClickHouse)
-└── init.sql                    # MySQL初始化SQL
+├── docker-compose-full.yml     # 完整版 (Redis + MySQL + ClickHouse) ✓
+└── init.sql                    # MySQL初始化SQL (9表 + 预定义数据) ✓
+
+credentials.py                  # 凭证配置 (仅存储敏感信息) ✓
+credentials_sample.py           # 凭证模板 (同步更新) ✓
 ```
 
 **Structure Decision**: 单体应用 + 新增storage模块,不拆分为独立库。所有数据存储相关代码集中在`storage/`目录,便于维护和测试。

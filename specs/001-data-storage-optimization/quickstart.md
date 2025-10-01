@@ -238,28 +238,38 @@ python scripts/verify_consistency.py --type kline --sample 100
 
 ### 5.1 修改配置文件
 
-编辑 `credentials.py`:
+编辑 `credentials.py` (仅修改凭证部分):
 
 ```python
 # 数据存储模式配置
 DATA_STORE_MODE = 'hybrid'  # 'file', 'redis', 'mysql', 'clickhouse', 'hybrid'
 
-# Redis配置
+# Redis 连接凭证
 REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
-REDIS_PASSWORD = None  # 如果设置了密码,在这里填写
+REDIS_PASSWORD = ''  # 如果 Redis 设置了密码,在此填写
 
-# MySQL配置
+# MySQL 连接凭证
 MYSQL_HOST = 'localhost'
 MYSQL_PORT = 3306
-MYSQL_DATABASE = 'silverquant'
 MYSQL_USER = 'root'
 MYSQL_PASSWORD = 'silverquant2024'
+MYSQL_DATABASE = 'silverquant'
 
-# ClickHouse配置
+# ClickHouse 连接凭证
 CLICKHOUSE_HOST = 'localhost'
-CLICKHOUSE_HTTP_PORT = 8123
-CLICKHOUSE_NATIVE_PORT = 9000
+CLICKHOUSE_PORT = 9000
+CLICKHOUSE_USER = 'default'
+CLICKHOUSE_PASSWORD = 'silverquant2024'
+CLICKHOUSE_DATABASE = 'silverquant'
+```
+
+**注意**: 配置逻辑在 `storage/config.py` 中自动处理,支持环境变量覆盖:
+```bash
+# 通过环境变量覆盖配置
+export DATA_STORE_MODE=hybrid
+export REDIS_HOST=192.168.1.100
+export MYSQL_PASSWORD=my_secure_password
 ```
 
 ### 5.2 测试混合模式
@@ -616,6 +626,141 @@ docker exec -it silverquant-clickhouse clickhouse-client
 
 # 清理ClickHouse旧分区 (释放资源)
 python scripts/cleanup_old_partitions.py --before 2020-01-01
+```
+
+---
+
+## Step 8: 使用工厂函数和混合存储 (已实现)
+
+### 8.1 使用工厂函数创建存储实例
+
+**工厂函数**提供了统一的接口来创建不同类型的存储实例:
+
+```python
+from storage import create_data_store
+
+# 方式1: 文件存储 (默认,适合开发/测试)
+store = create_data_store('file')
+
+# 方式2: Redis存储 (仅持仓状态)
+store = create_data_store('redis')
+
+# 方式3: MySQL存储 (仅账户/策略)
+store = create_data_store('mysql')
+
+# 方式4: ClickHouse存储 (仅交易/K线)
+store = create_data_store('clickhouse')
+
+# 方式5: 混合存储 (推荐,生产环境)
+store = create_data_store('hybrid', {
+    'enable_dual_write': True,      # 启用双写模式
+    'enable_auto_fallback': True    # 启用自动降级
+})
+```
+
+### 8.2 混合存储的自动降级
+
+**混合存储 (HybridStore)** 实现了智能降级策略,确保服务高可用:
+
+```python
+from storage import create_data_store
+
+# 创建混合存储实例
+store = create_data_store('hybrid')
+
+# 读操作: 优先数据库,失败自动降级到文件
+days = store.get_held_days('SH600000', '55009728')
+# 尝试顺序: Redis → File (自动降级)
+
+# 写操作: 双写到数据库和文件
+store.update_held_days('SH600000', '55009728', 5)
+# 同时写入: Redis + File (至少一个成功即可)
+
+# 交易记录: ClickHouse优先,降级到CSV
+df = store.query_trades('55009728', '2025-01-01', '2025-12-31')
+# 尝试顺序: ClickHouse → File CSV
+
+# 账户管理: MySQL优先,降级到JSON
+account = store.get_account('55009728')
+# 尝试顺序: MySQL → File JSON
+```
+
+### 8.3 配置不同的存储模式
+
+**场景1: 开发环境 (纯文件)**
+```python
+# credentials.py
+DATA_STORE_MODE = 'file'
+
+# 策略代码
+from storage import create_data_store
+from storage.config import STORAGE_MODE
+
+store = create_data_store(STORAGE_MODE)
+# 自动使用文件存储,无需数据库
+```
+
+**场景2: 测试环境 (启用Redis)**
+```python
+# credentials.py
+DATA_STORE_MODE = 'hybrid'
+
+# 策略代码
+store = create_data_store('hybrid', {
+    'enable_redis': True,
+    'enable_mysql': False,
+    'enable_clickhouse': False
+})
+# 仅Redis + File双写,降低环境要求
+```
+
+**场景3: 生产环境 (全部启用)**
+```python
+# credentials.py
+DATA_STORE_MODE = 'hybrid'
+
+# 策略代码
+store = create_data_store('hybrid', {
+    'enable_redis': True,
+    'enable_mysql': True,
+    'enable_clickhouse': True,
+    'enable_dual_write': True,
+    'enable_auto_fallback': True
+})
+# 全后端 + 双写 + 自动降级 = 最高可靠性
+```
+
+### 8.4 运行单元测试验证
+
+```bash
+# 测试工厂函数
+pytest tests/unit/test_hybrid_store.py::TestFactoryFunction -v
+
+# 测试HybridStore基础功能
+pytest tests/unit/test_hybrid_store.py::TestHybridStoreBasics -v
+
+# 测试持仓操作 (Redis + File双写)
+pytest tests/unit/test_hybrid_store.py::TestHybridStorePositionOperations -v
+
+# 测试交易操作 (ClickHouse + File双写)
+pytest tests/unit/test_hybrid_store.py::TestHybridStoreTradeOperations -v
+
+# 测试账户操作 (MySQL + File双写)
+pytest tests/unit/test_hybrid_store.py::TestHybridStoreAccountOperations -v
+
+# 运行所有HybridStore测试
+pytest tests/unit/test_hybrid_store.py -v
+```
+
+**预期输出**:
+```
+tests/unit/test_hybrid_store.py::TestFactoryFunction::test_create_file_store PASSED
+tests/unit/test_hybrid_store.py::TestFactoryFunction::test_create_redis_store PASSED
+tests/unit/test_hybrid_store.py::TestFactoryFunction::test_create_mysql_store PASSED
+tests/unit/test_hybrid_store.py::TestFactoryFunction::test_create_clickhouse_store PASSED
+tests/unit/test_hybrid_store.py::TestFactoryFunction::test_create_hybrid_store PASSED
+...
+============================== 18 passed in 3.02s ==============================
 ```
 
 ---
