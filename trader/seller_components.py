@@ -8,14 +8,15 @@ from xtquant.xttype import XtPosition
 from tools.utils_basic import get_limit_up_price
 from tools.utils_remote import concat_ak_quote_dict
 from trader.seller import BaseSeller
+from storage.base_store import BaseDataStore
 
 
 # --------------------------------
 # 根据建仓价的下跌比例严格绝对止损
 # --------------------------------
 class HardSeller(BaseSeller):
-    def __init__(self, strategy_name, delegate, parameters):
-        BaseSeller.__init__(self, strategy_name, delegate, parameters)
+    def __init__(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
+        BaseSeller.__init__(self, strategy_name, delegate, parameters, data_store)
         print('硬性卖出策略', end=' ')
         self.hard_time_range = parameters.hard_time_range
         self.earn_limit = parameters.earn_limit
@@ -46,8 +47,8 @@ class HardSeller(BaseSeller):
 # 盈利未达预期则卖出换仓
 # --------------------------------
 class SwitchSeller(BaseSeller):
-    def __init__(self, strategy_name, delegate, parameters):
-        BaseSeller.__init__(self, strategy_name, delegate, parameters)
+    def __init__(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
+        BaseSeller.__init__(self, strategy_name, delegate, parameters, data_store)
         print('换仓卖出策略', end=' ')
         self.switch_time_range = parameters.switch_time_range
         self.switch_hold_days = parameters.switch_hold_days
@@ -74,8 +75,8 @@ class SwitchSeller(BaseSeller):
 # 历史最高价回落比例止盈
 # --------------------------------
 class FallSeller(BaseSeller):
-    def __init__(self, strategy_name, delegate, parameters):
-        BaseSeller.__init__(self, strategy_name, delegate, parameters)
+    def __init__(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
+        BaseSeller.__init__(self, strategy_name, delegate, parameters, data_store)
         print('回落卖出策略', end=' ')
         self.fall_time_range = parameters.fall_time_range
         self.fall_from_top = parameters.fall_from_top
@@ -107,8 +108,8 @@ class FallSeller(BaseSeller):
 # 浮盈回撤百分止盈
 # --------------------------------
 class ReturnSeller(BaseSeller):
-    def __init__(self, strategy_name, delegate, parameters):
-        BaseSeller.__init__(self, strategy_name, delegate, parameters)
+    def __init__(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
+        BaseSeller.__init__(self, strategy_name, delegate, parameters, data_store)
         print('回撤卖出策略', end=' ')
         self.return_time_range = parameters.return_time_range
         self.return_of_profit = parameters.return_of_profit
@@ -165,8 +166,8 @@ class ReturnSeller(BaseSeller):
 # 开仓日当天指标尾盘止损
 # --------------------------------
 class OpenDaySeller(BaseSeller):
-    def __init__(self, strategy_name, delegate, parameters):
-        BaseSeller.__init__(self, strategy_name, delegate, parameters)
+    def __init__(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
+        BaseSeller.__init__(self, strategy_name, delegate, parameters, data_store)
         print('开仓日指标止损策略', end=' ')
         self.opening_time_range = parameters.opening_time_range
         self.open_low_rate = parameters.open_low_rate
@@ -203,8 +204,8 @@ class OpenDaySeller(BaseSeller):
 # 跌破均线卖出
 # --------------------------------
 class MASeller(BaseSeller):
-    def __init__(self, strategy_name, delegate, parameters):
-        BaseSeller.__init__(self, strategy_name, delegate, parameters)
+    def __init__(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
+        BaseSeller.__init__(self, strategy_name, delegate, parameters, data_store)
         print(f'跌破{parameters.ma_above}日均线卖出策略', end=' ')
         self.ma_time_range = parameters.ma_time_range
         self.ma_above = parameters.ma_above
@@ -235,8 +236,8 @@ class MASeller(BaseSeller):
 # CCI 冲高回落卖出
 # --------------------------------
 class CCISeller(BaseSeller):
-    def __init__(self, strategy_name, delegate, parameters):
-        BaseSeller.__init__(self, strategy_name, delegate, parameters)
+    def __init__(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
+        BaseSeller.__init__(self, strategy_name, delegate, parameters, data_store)
         print('CCI卖出策略', end=' ')
         self.cci_time_range = parameters.cci_time_range
         self.cci_upper = parameters.cci_upper
@@ -270,8 +271,8 @@ class CCISeller(BaseSeller):
 # WR上穿卖出
 # --------------------------------
 class WRSeller(BaseSeller):
-    def __init__(self, strategy_name, delegate, parameters):
-        BaseSeller.__init__(self, strategy_name, delegate, parameters)
+    def __init__(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
+        BaseSeller.__init__(self, strategy_name, delegate, parameters, data_store)
         print('WR上穿卖出策略', end=' ')
         self.wr_time_range = parameters.wr_time_range
         self.wr_cross = parameters.wr_cross
@@ -300,8 +301,8 @@ class WRSeller(BaseSeller):
 # 次日成交量萎缩卖出
 # --------------------------------
 class VolumeDropSeller(BaseSeller):
-    def __init__(self, strategy_name, delegate, parameters):
-        BaseSeller.__init__(self, strategy_name, delegate, parameters)
+    def __init__(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
+        BaseSeller.__init__(self, strategy_name, delegate, parameters, data_store)
         print('次缩卖出策略', end=' ')
         self.next_time_range = parameters.next_time_range
         self.next_volume_dec_threshold = parameters.vol_dec_thre
@@ -335,8 +336,8 @@ class VolumeDropSeller(BaseSeller):
 # 高开出货卖出
 # --------------------------------
 class DropSeller(BaseSeller):
-    def __init__(self, strategy_name, delegate, parameters):
-        BaseSeller.__init__(self, strategy_name, delegate, parameters)
+    def __init__(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
+        BaseSeller.__init__(self, strategy_name, delegate, parameters, data_store)
         print('高开出货卖出', end=' ')
         self.drop_time_range = parameters.drop_time_range
         self.drop_out_limits = parameters.drop_out_limits
@@ -374,8 +375,8 @@ class DropSeller(BaseSeller):
 # 上涨过程阻断器
 # --------------------------------
 class IncBlocker(BaseSeller):
-    def __init__(self, strategy_name, delegate, parameters):
-        BaseSeller.__init__(self, strategy_name, delegate, parameters)
+    def __init__(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
+        BaseSeller.__init__(self, strategy_name, delegate, parameters, data_store)
         print('上涨过程禁卖', end=' ')
 
     def check_sell(
@@ -395,8 +396,8 @@ class IncBlocker(BaseSeller):
 # 双涨趋势阻断器
 # --------------------------------
 class UppingBlocker(BaseSeller):
-    def __init__(self, strategy_name, delegate, parameters):
-        BaseSeller.__init__(self, strategy_name, delegate, parameters)
+    def __init__(self, strategy_name, delegate, parameters, data_store: Optional[BaseDataStore] = None):
+        BaseSeller.__init__(self, strategy_name, delegate, parameters, data_store)
         print('上行趋势禁卖', end=' ')
 
     def check_sell(

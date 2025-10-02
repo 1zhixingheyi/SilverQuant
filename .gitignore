@@ -175,3 +175,6 @@ credentials.py
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Specify tool scripts (保留已提交的.specify/scripts/python/目录)
+# .specify/

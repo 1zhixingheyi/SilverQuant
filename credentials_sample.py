@@ -21,3 +21,28 @@ GM_ACCOUNT_ID = '189ca421-49db-11ef-9fa8-0016********'
 # 需自行搭建服务，用于推送选股结果
 RECOMMEND_HOST = 'http://127.0.0.1:5000'
 AUTHENTICATION = '*********************'
+
+# ============================================================
+# 数据存储凭证 (Data Storage Credentials)
+# ============================================================
+# Redis 连接凭证
+REDIS_HOST = 'localhost'
+REDIS_PORT = 6379
+REDIS_PASSWORD = ''  # 如果 Redis 设置了密码,在此填写
+
+# MySQL 连接凭证
+MYSQL_HOST = 'localhost'
+MYSQL_PORT = 3306
+MYSQL_USER = 'root'
+MYSQL_PASSWORD = 'silverquant2024'
+MYSQL_DATABASE = 'silverquant'
+
+# ClickHouse 连接凭证
+CLICKHOUSE_HOST = 'localhost'
+CLICKHOUSE_PORT = 9000
+CLICKHOUSE_USER = 'default'
+CLICKHOUSE_PASSWORD = 'silverquant2024'
+CLICKHOUSE_DATABASE = 'silverquant'
+
+# 数据存储模式: "file", "redis", "mysql", "clickhouse", "hybrid"
+DATA_STORE_MODE = 'file'

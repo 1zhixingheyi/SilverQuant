@@ -17,6 +17,9 @@ from trader.seller_groups import ClassicGroupSeller as Seller
 
 from selector.select_wencai import get_prompt
 
+# 数据存储模块
+from storage import create_data_store
+
 select_prompt = get_prompt()
 
 STRATEGY_NAME = '问财选股'
@@ -97,7 +100,8 @@ def held_increase() -> None:
         return
 
     update_position_held(disk_lock, my_delegate, PATH_HELD)
-    if all_held_inc(disk_lock, PATH_HELD):
+    # 使用 data_store 的原子递增方法
+    if data_store.all_held_inc(QMT_ACCOUNT_ID):
         logging.warning('===== 所有持仓计数 +1 =====')
         print(f'All held stock day +1!')
 
@@ -236,6 +240,29 @@ if __name__ == '__main__':
     logging_init(path=PATH_LOGS, level=logging.INFO)
     STRATEGY_NAME = STRATEGY_NAME if IS_PROD else STRATEGY_NAME + "[测]"
     print(f'正在启动 {STRATEGY_NAME}...')
+
+    # 初始化数据存储
+    data_store_config = {
+        'cache_path': PATH_BASE,
+        'enable_dual_write': ENABLE_DUAL_WRITE,
+        'enable_auto_fallback': ENABLE_AUTO_FALLBACK
+    }
+
+    try:
+        data_store = create_data_store(DATA_STORE_MODE, data_store_config)
+        health_status = data_store.health_check()
+
+        if not health_status.get('healthy', False):
+            logging.warning(f'数据存储健康检查异常: {health_status}')
+            if DATA_STORE_MODE != 'file':
+                logging.warning('自动降级到 file 模式')
+                data_store = create_data_store('file', data_store_config)
+        else:
+            logging.info(f'数据存储初始化成功: mode={DATA_STORE_MODE}')
+    except Exception as e:
+        logging.error(f'数据存储初始化失败: {e}，降级到 file 模式')
+        data_store = create_data_store('file', data_store_config)
+
     if IS_PROD:
         from delegate.xt_callback import XtCustomCallback
         from delegate.xt_delegate import XtDelegate, get_holding_position_count
@@ -292,6 +319,7 @@ if __name__ == '__main__':
         strategy_name=STRATEGY_NAME,
         delegate=my_delegate,
         parameters=SellConf,
+        data_store=data_store,  # 传递数据存储实例
     )
     my_suber = XtSubscriber(
         account_id=QMT_ACCOUNT_ID,
