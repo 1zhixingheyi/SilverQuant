@@ -172,3 +172,6 @@ _cache/test_pwc/
 
 # credential
 credentials.py
+
+# Claude Code local settings
+.claude/settings.local.json
