@@ -1,0 +1,156 @@
+# ==============================================================================
+# SilverQuant 本地开发配置 (使用 Docker 命名卷)
+# ==============================================================================
+#
+# 特点:
+#   - 使用 Docker 命名卷 (避免 Windows 文件权限问题)
+#   - 数据自动存储在 Podman/Docker 管理的卷中
+#   - 密码统一为 860721 (与 credentials.py 一致)
+#   - 数据库名 silverquant_storage (独立隔离)
+#
+# 使用方式:
+#   启动: podman-compose -f docker-compose-local.yml up -d
+#   停止: podman-compose -f docker-compose-local.yml down
+#   查看: podman-compose -f docker-compose-local.yml ps
+#
+# 数据卷位置:
+#   Podman (Windows): C:\Users\<用户名>\.local\share\containers\storage\volumes\
+#   Docker (Windows): \\wsl$\docker-desktop-data\data\docker\volumes\
+#
+# ==============================================================================
+
+version: '3.8'
+
+services:
+  # ===========================================================================
+  # Redis (HOT Layer - 高速缓存)
+  # ===========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: silverquant-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - silverquant-redis-data:/data
+    command: redis-server --appendonly yes --appendfsync everysec
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - silverquant-net
+
+  # ===========================================================================
+  # MySQL (COOL Layer - 结构化业务数据)
+  # ===========================================================================
+  mysql:
+    image: mysql:8.0
+    container_name: silverquant-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: "860721"
+      MYSQL_DATABASE: silverquant_storage
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+    volumes:
+      - silverquant-mysql-data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p860721"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - silverquant-net
+
+  # ===========================================================================
+  # ClickHouse (WARM Layer - 时序分析数据)
+  # ===========================================================================
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: silverquant-clickhouse
+    ports:
+      - "8123:8123"  # HTTP interface
+      - "9000:9000"  # Native TCP interface
+    volumes:
+      - silverquant-clickhouse-data:/var/lib/clickhouse
+      - silverquant-clickhouse-logs:/var/log/clickhouse-server
+    environment:
+      CLICKHOUSE_DB: silverquant_storage
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: "860721"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - silverquant-net
+
+# ==============================================================================
+# 数据卷定义
+# ==============================================================================
+volumes:
+  silverquant-redis-data:
+    name: silverquant-redis-data
+    driver: local
+  silverquant-mysql-data:
+    name: silverquant-mysql-data
+    driver: local
+  silverquant-clickhouse-data:
+    name: silverquant-clickhouse-data
+    driver: local
+  silverquant-clickhouse-logs:
+    name: silverquant-clickhouse-logs
+    driver: local
+
+# ==============================================================================
+# 网络配置
+# ==============================================================================
+networks:
+  silverquant-net:
+    name: silverquant-network
+    driver: bridge
+
+# ==============================================================================
+# 数据备份与导出
+# ==============================================================================
+#
+# 备份数据卷:
+#   podman volume export silverquant-mysql-data > mysql-backup.tar
+#
+# 恢复数据卷:
+#   podman volume import silverquant-mysql-data < mysql-backup.tar
+#
+# 查看卷详情:
+#   podman volume inspect silverquant-mysql-data
+#
+# 查看所有卷:
+#   podman volume ls
+#
+# ==============================================================================
+# 数据迁移到 E:\Database\databases
+# ==============================================================================
+#
+# 如果后续需要迁移到本地目录:
+#
+# 1. 停止容器:
+#    podman-compose -f docker-compose-local.yml down
+#
+# 2. 导出数据:
+#    podman run --rm -v silverquant-mysql-data:/source \
+#      -v /mnt/e/Database/databases/mysql/silverquant:/target \
+#      busybox sh -c "cp -a /source/. /target/"
+#
+# 3. 修改 docker-compose 使用绑定挂载
+#
+# ==============================================================================

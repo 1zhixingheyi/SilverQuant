@@ -21,10 +21,16 @@ from storage.file_store import FileStore
 from storage.redis_store import RedisStore
 from storage.mysql_store import MySQLStore
 from storage.clickhouse_store import ClickHouseStore
+from storage.logging_config import (
+    setup_storage_logger,
+    log_performance,
+    log_degradation,
+    log_data_inconsistency
+)
 
 
-# 配置日志
-logger = logging.getLogger(__name__)
+# 配置日志 - 使用轮转日志记录器
+logger = setup_storage_logger('storage.hybrid', level=logging.INFO)
 
 
 class HybridStore(BaseDataStore):
@@ -105,6 +111,7 @@ class HybridStore(BaseDataStore):
 
     # ==================== 持仓状态 (Position State) - Redis + File ====================
 
+    @log_performance("get_held_days", logger)
     def get_held_days(self, code: str, account_id: str) -> Optional[int]:
         """
         查询持仓天数
@@ -118,7 +125,7 @@ class HybridStore(BaseDataStore):
                 return result
             except Exception as e:
                 if self.enable_auto_fallback:
-                    logger.warning(f'[HybridStore] Redis get_held_days failed, fallback to File: {e}')
+                    logger.warning(f'[DEGRADATION] Redis get_held_days failed, fallback to File: {e}')
                 else:
                     raise
 
@@ -201,6 +208,7 @@ class HybridStore(BaseDataStore):
 
         return success_redis or success_file
 
+    @log_performance("all_held_inc", logger)
     def all_held_inc(self, account_id: str) -> bool:
         """
         所有持仓天数 +1
@@ -220,7 +228,7 @@ class HybridStore(BaseDataStore):
                 return result
             except Exception as e:
                 if self.enable_auto_fallback:
-                    logger.warning(f'[HybridStore] Redis all_held_inc failed, fallback to File: {e}')
+                    logger.warning(f'[DEGRADATION] Redis all_held_inc failed, fallback to File: {e}')
                 else:
                     raise
 
@@ -361,6 +369,7 @@ class HybridStore(BaseDataStore):
 
         return success_clickhouse or success_file
 
+    @log_performance("query_trades", logger)
     def query_trades(
         self,
         account_id: str,
@@ -383,7 +392,7 @@ class HybridStore(BaseDataStore):
                     return result
             except Exception as e:
                 if self.enable_auto_fallback:
-                    logger.warning(f'[HybridStore] ClickHouse query_trades failed, fallback to File: {e}')
+                    logger.warning(f'[DEGRADATION] ClickHouse query_trades failed, fallback to File: {e}')
                 else:
                     raise
 
@@ -421,6 +430,7 @@ class HybridStore(BaseDataStore):
 
     # ==================== K线数据 (Kline Data) - ClickHouse + File ====================
 
+    @log_performance("get_kline", logger)
     def get_kline(
         self,
         stock_code: str,
@@ -443,7 +453,7 @@ class HybridStore(BaseDataStore):
                     return result
             except Exception as e:
                 if self.enable_auto_fallback:
-                    logger.warning(f'[HybridStore] ClickHouse get_kline failed, fallback to File: {e}')
+                    logger.warning(f'[DEGRADATION] ClickHouse get_kline failed, fallback to File: {e}')
                 else:
                     raise
 
