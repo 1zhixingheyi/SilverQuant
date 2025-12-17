@@ -1,6 +1,54 @@
 """
-https://sim.myquant.cn/sim/help/Python.html
+掘金交易委托代理
+
+提供基于掘金平台的交易委托执行功能：
+- 完整交易支持：市价/限价、买入/卖出、撤单等交易操作
+- 实时查询：资产、订单、持仓信息的实时查询
+- 消息通知：交易结果的钉钉消息推送
+- 状态管理：交易状态和持仓状态的跟踪管理
+- 回调机制：支持交易事件回调注册
+
+委托代理架构：
+- 接口实现：实现BaseDelegate抽象基类的所有交易接口
+- 数据封装：掘金原生数据到标准格式的转换
+- 消息集成：与钉钉消息推送的无缝集成
+- 错误处理：交易异常和网络异常的容错机制
+
+核心功能特性：
+- 多订单类型：市价单、限价单支持
+- 实时通知：交易执行结果的实时消息推送
+- 账户管理：支持多账户的资产和持仓管理
+- 订单管理：订单查询、撤单、批量撤单功能
+- 持仓筛选：有效持仓的智能筛选和统计
+
+交易操作支持：
+- 市价买入/卖出：order_market_open/close
+- 限价买入/卖出：order_limit_open/close
+- 撤单操作：order_cancel_all/buy/sell
+- 资产查询：check_asset
+- 订单查询：check_orders
+- 持仓查询：check_positions
+
+数据模型转换：
+- GmAsset：掘金Cash到标准资产格式
+- GmOrder：掘金Order到标准订单格式
+- GmPosition：掘金Position到标准持仓格式
+- 代码转换：股票代码与掘金符号互转
+
+消息通知格式：
+- 标准格式：包含账户ID、策略名称、操作类型
+- 详细信息：股票代码、名称、数量、价格
+- 时间戳：精确到秒的交易时间
+- 状态标识：买卖类型和操作状态的简短标识
+
+与其他模块的关系：
+- delegate/base_delegate.py: 继承交易委托抽象基类
+- delegate/gm_callback.py: 交易回调事件处理
+- credentials.py: 掘金账户和令牌配置
+- tools/utils_ding.py: 交易消息通知推送
+- tools/utils_cache.py: 股票名称缓存查询
 """
+
 import datetime
 from typing import List
 

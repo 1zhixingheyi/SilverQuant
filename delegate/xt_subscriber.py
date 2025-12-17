@@ -133,13 +133,15 @@ class XtSubscriber(BaseSubscriber):
     # 策略触发主函数
     # -----------------------
     def callback_sub_whole(self, quotes: Dict) -> None:
+        # 教学说明：QMT行情数据回调主函数，每次收到行情数据时被调用
+        # 这是量化策略的核心驱动函数，负责实时行情数据的处理和策略执行调度
         now = datetime.datetime.now()
         self.last_callback_time = now
 
         curr_date = now.strftime('%Y-%m-%d')
         curr_time = now.strftime('%H:%M')
 
-        # 每分钟输出一行开头
+        # 教学说明：每分钟输出一次时间标记，方便控制台观察运行状态
         if self.cache_limits['prev_minutes'] != curr_time:
             self.cache_limits['prev_minutes'] = curr_time
             print(f'\n[{curr_time}]', end='')
@@ -148,25 +150,30 @@ class XtSubscriber(BaseSubscriber):
         with self.lock_quotes_update:
             self.cache_quotes.update(quotes)  # 合并最新数据
 
-        # 执行策略
+        # 教学说明：策略执行控制，每秒最多执行一次策略，避免过度频繁调用
         if self.cache_limits['prev_seconds'] != curr_seconds:
             self.cache_limits['prev_seconds'] = curr_seconds
 
             print_mark = '.' if len(self.cache_quotes) > 0 else 'x'
 
             if int(curr_seconds) % self.execute_interval == 0:
-                # 更全（默认：先记录再执行）
+                # 教学说明：Tick数据记录模式（完整模式：先记录再执行策略）
                 if self.open_tick and (not self.quick_ticks):
+                    print(f"📝 [教学说明] 记录完整Tick数据到内存缓存...")
                     self.record_tick_to_memory(self.cache_quotes)
 
+                # 教学说明：执行策略核心函数，传入当前时间和行情数据
+                print(f"⚡ [教学说明] 执行策略逻辑 (间隔{self.execute_interval}秒)")
                 # str(%Y-%m-%d) str(%H:%M) str(%S) dict(code: quotes)
                 is_clear = self.execute_strategy(curr_date, curr_time, curr_seconds, self.cache_quotes)
 
-                # 更快（先执行再记录）
+                # 教学说明：Tick数据记录模式（快速模式：先执行策略再记录）
                 if self.open_tick and self.quick_ticks:
+                    print(f"⚡ [教学说明] 记录快速Tick数据到内存缓存...")
                     self.record_tick_to_memory(self.cache_quotes)
 
                 if is_clear:
+                    print(f"🧹 [教学说明] 清空行情缓存，准备接收新数据")
                     with self.lock_quotes_update:
                         self.cache_quotes.clear()  # execute_strategy() return True means need clear
 
@@ -236,14 +243,17 @@ class XtSubscriber(BaseSubscriber):
     # 订阅tick相关
     # -----------------------
     def subscribe_tick(self, resume: bool = False):
+        # 教学说明：开启实时行情数据订阅，这是策略获取市场数据的入口
         if not check_is_open_day(datetime.datetime.now().strftime('%Y-%m-%d')):
             return
 
+        print(f"📡 [教学说明] 开始订阅实时行情数据，股票数量: {len(self.code_list)}只")
         if self.messager is not None:
             self.messager.send_text_as_md(f'[{self.account_id}]{self.strategy_name}:'
                                           f'{"恢复" if resume else "开启"} {len(self.code_list)}支')
         print('[开启行情订阅]', end='')
-        xtdata.enable_hello = False
+        xtdata.enable_hello = False  # 关闭QMT的hello消息，减少控制台噪音
+        print(f"🔗 [教学说明] 注册行情回调函数，开始接收实时Tick数据...")
         self.cache_limits['sub_seq'] = xtdata.subscribe_whole_quote(self.code_list, callback=self.callback_sub_whole)
 
     def unsubscribe_tick(self, pause: bool = False):
@@ -405,31 +415,41 @@ class XtSubscriber(BaseSubscriber):
         columns: list[str],
         data_source: DataSource,
     ):
+        # 教学说明：下载历史K线数据缓存，为策略提供技术分析基础数据
+        print(f"📊 [教学说明] 开始下载历史数据缓存，数据源: {data_source}")
+        print(f"📅 [教学说明] 时间范围: {start} - {end}，股票数量: {len(code_list)}只")
+
         # ======== 每日一次性全量数据源 ========
         if data_source == DataSource.AKSHARE or data_source == DataSource.TDXZIP:
+            print(f"🗂️ [教学说明] 检查本地缓存文件: {cache_path}")
             temp_indicators = load_pickle(cache_path)
             if temp_indicators is not None and len(temp_indicators) > 0:
-                # 如果有缓存就读缓存
+                # 教学说明：优先使用本地缓存，提高启动速度并减少网络请求
+                print(f"✅ [教学说明] 发现有效缓存，直接加载历史数据")
                 self.cache_history.clear()
                 self.cache_history = {}
                 self.cache_history.update(temp_indicators)
-                print(f'{len(self.cache_history)} histories loaded from {cache_path}')
+                print(f'📈 [教学说明] 成功加载 {len(self.cache_history)} 只股票的历史数据')
                 if self.messager is not None:
                     self.messager.send_text_as_md(f'[{self.account_id}]{self.strategy_name}:'
                                                   f'历史{len(self.cache_history)}支')
             else:
-                # 如果没缓存就刷新白名单
+                # 教学说明：无有效缓存时，从远程数据源下载完整历史数据
+                print(f"🌐 [教学说明] 未发现有效缓存，开始从远程下载历史数据")
                 self.cache_history.clear()
                 self.cache_history = {}
                 if data_source == DataSource.AKSHARE:
+                    print(f"📡 [教学说明] 使用AKShare数据源下载历史数据...")
                     self._download_from_remote(code_list, start, end, adjust, columns, data_source)
                 else:
+                    print(f"📋 [教学说明] 使用通达信ZIP数据源")
                     print('[提醒] 使用TDX ZIP文件作为数据源，请在RUN代码中添加调度任务check_xdxr_cache更新除权除息数据，建议运行时段在05:30之后。')
                     print('[提醒] 使用TDX ZIP文件作为数据源，请在RUN代码中建议在near_trade_begin中执行download_cache_history获取历史数据，避免before_trade_day执行时间太早未更新除权信息。')
                     self._download_from_tdx(code_list, start, end, adjust, columns)
 
                 save_pickle(cache_path, self.cache_history)
-                print(f'{len(self.cache_history)} of {len(code_list)} histories saved to {cache_path}')
+                print(f'💾 [教学说明] 历史数据已缓存到本地: {len(self.cache_history)}/{len(code_list)} 只股票')
+                print(f'📁 [教学说明] 缓存文件路径: {cache_path}')
                 if self.messager is not None:
                     self.messager.send_text_as_md(f'[{self.account_id}]{self.strategy_name}:'
                                                   f'历史{len(self.cache_history)}支')
@@ -617,20 +637,36 @@ class XtSubscriber(BaseSubscriber):
             self.delegate.shutdown()
 
     def start_scheduler_with_qmt_data(self):
+        # 教学说明：QMT实时数据模式的定时任务调度器
+        print(f"📅 [教学说明] 配置QMT模式定时任务调度器...")
+
+        # 教学说明：QMT调度器任务详解
+        print("🔧 [教学说明] QMT调度器核心任务:")
+        print("  ├─ 实时行情订阅与数据处理")
+        print("  ├─ 定时交易信号执行")
+        print("  ├─ 数据源稳定性监控")
+        print("  └─ 异常情况自动恢复")
+
+        print("📁 [教学说明] 相关配置文件:")
+        print("  ├─ run_wencai_qmt.py  - 主策略配置 (BuyConf/SellConf)")
+        print("  ├─ tools/utils_cache.py - 交易日历与缓存管理")
+        print("  └─ credentials.py     - 交易账户与API配置")
+
         # 默认定时任务列表
         cron_jobs = [
-            ['01:00', self.prev_check_open_day, None],
-            ['08:30', self.near_trade_begin_wrapper, None],
-            ['08:55', self.check_before_finished, None],
-            ['09:14', self.subscribe_tick, None],
-            ['11:31', self.unsubscribe_tick, (True, )],
-            ['12:59', self.subscribe_tick, (True, )],
-            ['15:01', self.unsubscribe_tick, None],
-            ['15:02', self.daily_summary, None],
+            ['01:00', self.prev_check_open_day, None],          # 凌晨检查交易日
+            ['08:30', self.near_trade_begin_wrapper, None],     # 盘前准备工作
+            ['08:55', self.check_before_finished, None],        # 检查盘前准备完成情况
+            ['09:14', self.subscribe_tick, None],               # 开盘前开启行情订阅
+            ['11:31', self.unsubscribe_tick, (True, )],         # 午间休市暂停订阅
+            ['12:59', self.subscribe_tick, (True, )],           # 午后开盘前恢复订阅
+            ['15:01', self.unsubscribe_tick, None],             # 收盘后关闭订阅
+            ['15:02', self.daily_summary, None],                # 盘后总结报告
         ]
         if self.open_tick:
-            cron_jobs.append(['09:10', self.clean_ticks_history, None])
-            cron_jobs.append(['15:10', self.save_tick_history, None])
+            cron_jobs.append(['09:10', self.clean_ticks_history, None])      # 开盘前清理Tick缓存
+            cron_jobs.append(['15:10', self.save_tick_history, None])       # 收盘后保存Tick数据
+            print(f"📊 [教学说明] 已添加Tick数据管理任务")
 
         if self.before_trade_day is not None:
             cron_jobs.append([  # 03:00 ~ 06:59
@@ -638,6 +674,7 @@ class XtSubscriber(BaseSubscriber):
                 self.before_trade_day_wrapper,
                 None,
             ])  # random 时间为了跑多个策略时防止短期预加载数据流量压力过大
+            print(f"🌅 [教学说明] 已添加盘前数据预加载任务 (随机时间03:00-06:59)")
 
         if self.finish_trade_day is not None:
             cron_jobs.append([  # 16:05 ~ 16:15
@@ -645,16 +682,20 @@ class XtSubscriber(BaseSubscriber):
                 self.finish_trade_day_wrapper,
                 None,
             ])
+            print(f"🌆 [教学说明] 已添加盘后数据整理任务 (随机时间16:05-16:15)")
 
-        # 数据源中断检查时间点
+        # 教学说明：数据源中断检查时间点，确保QMT数据流的稳定性
+        # 数据中断会导致策略无法正常执行，需要定期检查并重新订阅
         monitor_time_list = [
             '09:35', '09:45', '09:55', '10:05', '10:15', '10:25',
             '10:35', '10:45', '10:55', '11:05', '11:15', '11:25',
             '13:05', '13:15', '13:25', '13:35', '13:45', '13:55',
             '14:05', '14:15', '14:25', '14:35', '14:45', '14:55',
         ]
+        print(f"🔍 [教学说明] 已配置数据源监控检查点，共{len(monitor_time_list)}个")
         if self.use_ap_scheduler:
-            # 新版 apscheduler
+            # 教学说明：使用新版 APScheduler 进行定时任务调度
+            print(f"⚙️ [教学说明] 正在注册APScheduler定时任务...")
             for cron_job in cron_jobs:
                 [hr, mn] = cron_job[0].split(':')
                 if cron_job[2] is None:
@@ -662,22 +703,48 @@ class XtSubscriber(BaseSubscriber):
                 else:
                     self.scheduler.add_job(cron_job[1], 'cron', hour=hr, minute=mn, args=list(cron_job[2]))
 
-            # 尝试重新订阅 tick 数据，减少30分时无数据返回机率
+            # 教学说明：在09:29:30重新订阅Tick数据，防止开盘后数据断流
+            print(f"🔄 [教学说明] 添加Tick重订阅任务 (09:29:30)，防止开盘数据断流")
             self.scheduler.add_job(self.resubscribe_tick, 'cron', hour=9, minute=29, second=30)
 
             for monitor_time in monitor_time_list:
                 [hr, mn] = monitor_time.split(':')
                 self.scheduler.add_job(self.callback_monitor, 'cron', hour=hr, minute=mn)
 
-            # 启动定时器
+            # 教学说明：启动定时调度器，开始执行所有定时任务
             try:
+                print(f"🚀 [教学说明] 定时调度器启动成功，共注册{len(cron_jobs) + len(monitor_time_list) + 1}个定时任务")
+                print(f"⏰ [教学说明] 系统将按预设时间表自动执行各项任务")
+
+                # 教学说明：显示调度器执行流程
+                print("\n🔄 [教学说明] =============== 调度器执行流程 =============")
+                print("📡 [实时行情处理]:")
+                print("  QMT数据流 → callback_sub_whole() → 行情缓存 → 策略执行")
+                print("⚡ [策略执行]:")
+                print("  execute_strategy() → 时间窗口判断 → 买入/卖出扫描")
+                print("📊 [买入流程]:")
+                print("  问财选股 → 价格检查 → 买入决策 → 委托下单")
+                print("📉 [卖出流程]:")
+                print("  持仓监控 → 技术分析 → 卖出信号 → 委托下单")
+                print("🔍 [监控机制]:")
+                print("  数据流监控 → 异常检测 → 自动重连 → 故障恢复")
+
+                print('\n💡 [教学说明] 关键文件定位:')
+                print('  调度器配置: delegate/xt_subscriber.py:639')
+                print('  策略主入口: run_wencai_qmt.py:255')
+                print('  买入策略: trader/buyer.py:94')
+                print('  卖出策略: trader/seller_groups.py')
+
                 print('[定时器已启动]')
                 self.scheduler.start()
             except KeyboardInterrupt:
+                print('🛑 [教学说明] 用户手动中断程序执行')
                 print('[手动结束进程]')
             except Exception as e:
+                print(f"❌ [教学说明] 定时调度器发生异常: {e}")
                 print('策略定时器出错：', e)
             finally:
+                print(f"🔧 [教学说明] 正在关闭交易委托连接...")
                 self.delegate.shutdown()
                 try:
                     import sys
@@ -715,21 +782,29 @@ class XtSubscriber(BaseSubscriber):
             #     self.delegate.shutdown()
 
     def start_scheduler(self):
+        # 教学说明：启动定时调度器，这是整个量化策略的引擎核心
+        print(f"⏰ [教学说明] 正在启动策略定时调度器...")
+        print(f"📋 [教学说明] 调度器模式: {'外部数据源模式' if self.use_outside_data else 'QMT实时数据模式'}")
+
         if self.use_ap_scheduler:
             temp_now = datetime.datetime.now()
             temp_date = temp_now.strftime('%Y-%m-%d')
             temp_time = temp_now.strftime('%H:%M')
-            # 盘中执行需要补齐
+            # 教学说明：盘中启动补丁，如果在交易时间内启动，需要补执行盘前准备
             if '08:05' < temp_time < '15:30' and check_is_open_day(temp_date):
+                print(f"🔄 [教学说明] 检测到盘中启动，正在补执行盘前准备工作...")
                 self.before_trade_day_wrapper()
                 self.near_trade_begin_wrapper()
                 if '09:15' < temp_time < '11:30' or '13:00' <= temp_time < '14:57':
+                    print(f"📡 [教学说明] 检测到交易时间内，立即开启行情订阅...")
                     self.subscribe_tick()  # 重启时如果在交易时间则订阅Tick
 
         if self.use_outside_data:
+            print(f"🌐 [教学说明] 启动外部数据源模式的调度器...")
             self.start_scheduler_without_qmt_data()
             return
         else:
+            print(f"📈 [教学说明] 启动QMT实时数据模式的调度器...")
             self.start_scheduler_with_qmt_data()
 
     # -----------------------
