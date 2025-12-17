@@ -1,3 +1,53 @@
+"""
+股票池管理模块
+
+提供灵活的股票池构建和管理功能：
+- 白名单管理：多种数据源的白名单股票池构建
+- 黑名单过滤：基于条件筛选的黑名单机制
+- 实时刷新：支持股票池的动态刷新和更新
+- 技术择时：基于指数技术指标的股票池时机选择
+- 多源整合：问财、通达信、指数成分股等多数据源
+
+股票池架构设计：
+- 基础抽象：StockPool基类定义标准接口
+- 白名单策略：多种白名单构建策略的实现
+- 黑名单策略：多种黑名单过滤策略的实现
+- 组合模式：白名单和黑名单的灵活组合
+- 缓存机制：股票列表的本地缓存管理
+
+核心功能特性：
+- 多层过滤：白名单+黑名单的双重过滤机制
+- 动态更新：支持股票池的实时刷新
+- 消息通知：股票池更新状态的钉钉推送
+- 技术指标：基于MACD、MA等指标的择时策略
+- 数据容错：异常股票的自动移除机制
+
+白名单构建策略：
+- 问财选股：基于自然语言条件的智能选股
+- 自定义列表：从文件读取的股票代码列表
+- 通达信自选：读取通达信自选股文件
+- 指数成分：各大指数的成分股构建
+- 前缀过滤：基于股票代码前缀的筛选
+
+黑名单过滤策略：
+- 空黑名单：不启用黑名单过滤
+- 问财黑名单：基于问财条件的黑名单
+- 技术指标：基于技术指标的黑名单筛选
+
+技术择时策略：
+- MA择时：基于指数均线的趋势判断
+- MACD择时：基于指数MACD的趋势判断
+- 组合择时：多技术指标的综合择时
+- 动态周期：可调整的技术指标周期
+
+与其他模块的关系：
+- tools/utils_cache.py: 股票代码缓存查询
+- tools/utils_remote.py: 远程数据源获取
+- tools/utils_ding.py: 股票池状态通知推送
+- trader/pools_indicator.py: 技术指标计算
+- trader/pools_section.py: 行业概念板块数据
+"""
+
 import pandas as pd
 from typing import Callable
 
@@ -27,53 +77,90 @@ class StockPool:
         return self.cache_code_list
 
     def refresh(self):
+        # 教学说明：刷新股票池，更新白名单和黑名单
+        print(f"🔄 [教学说明] 开始刷新 {self.strategy_name} 股票池...")
+
+        # 教学说明：刷新黑名单，排除高风险股票
+        print("🛡️ [教学说明] 刷新黑名单...")
         self.refresh_black()
+
+        # 教学说明：刷新白名单，获取候选股票
+        print("✅ [教学说明] 刷新白名单...")
         self.refresh_white()
+
+        # 教学说明：计算最终股票池（白名单 - 黑名单）
+        original_whitelist = len(self.cache_whitelist)
         self.cache_code_list = list(self.cache_whitelist.difference(self.cache_blacklist))
+        final_count = len(self.cache_code_list)
 
-        print(f'[POOL] White list refreshed {len(self.cache_whitelist)} codes.')
-        print(f'[POOL] Black list refreshed {len(self.cache_blacklist)} codes.')
-        print(f'[POOL] Total list refreshed {len(self.get_code_list())} codes.')
+        # 教学说明：显示股票池统计信息
+        print(f"📊 [教学说明] 股票池刷新完成:")
+        print(f"  - 白名单股票: {len(self.cache_whitelist)}只")
+        print(f"  - 黑名单股票: {len(self.cache_blacklist)}只")
+        print(f"  - 过滤掉: {original_whitelist - final_count}只")
+        print(f"  - 最终股票池: {final_count}只")
 
+        # 教学说明：发送通知
         if self.messager is not None:
             self.messager.send_text_as_md(
-                f'{self.strategy_name}:股票池{len(self.get_code_list())}支{MSG_OUTER_SEPARATOR}'
+                f'📊 {self.strategy_name}:股票池{final_count}支{MSG_OUTER_SEPARATOR}'
                 f'白名单: {len(self.cache_whitelist)} 黑名单: {len(self.cache_blacklist)}')
 
     def refresh_black(self):
+        # 教学说明：清空并重新构建黑名单
+        print("🗑️ [教学说明] 清空黑名单缓存...")
         self.cache_blacklist.clear()
 
     def refresh_white(self):
+        # 教学说明：清空并重新构建白名单
+        print("📋 [教学说明] 清空白名单缓存...")
         self.cache_whitelist.clear()
 
     # 删除不符合模式和没有缓存的票池
     def filter_white_list_by_selector(self, filter_func: Callable, cache_history: dict[str, pd.DataFrame]):
-        print('[POOL] Filtering...', end='')
+        # 教学说明：使用技术指标过滤器进一步筛选白名单股票
+        print(f"🔍 [教学说明] 开始使用技术指标过滤白名单股票 (共 {len(self.cache_whitelist)}只)...")
 
         i = 0
         remove_list = []
+        passed_count = 0
+
         for code in self.cache_whitelist:
             i += 1
             if i % 200 == 0:
-                print(f'{i}.', end='')
+                print(f"📊 [教学说明] 已检查 {i}只股票...")
+
+            # 教学说明：检查是否有历史数据
             if code in cache_history and cache_history[code] is not None:
                 try:
+                    # 教学说明：应用技术指标过滤函数
                     df = filter_func(cache_history[code], code, None)  # 预筛公式默认不需要使用quote所以传None
                     if (len(df) > 0) and (not df['PASS'].values[-1]):
                         remove_list.append(code)
+                        print(f"❌ [教学说明] {code} 技术指标检查不通过，移出白名单")
+                    else:
+                        passed_count += 1
                 except Exception as e:
-                    print(f'[POOL] Error and dropped {code} when filtering: ', e)
+                    print(f"⚠️ [教学说明] {code} 数据处理出错，移出白名单: {e}")
                     remove_list.append(code)
             else:
+                # 教学说明：没有历史数据的股票也移除
+                print(f"⚠️ [教学说明] {code} 缺少历史数据，移出白名单")
                 remove_list.append(code)
 
+        # 教学说明：移除未通过过滤的股票
         for code in remove_list:
             self.cache_whitelist.discard(code)
 
-        print(f'[POOL] {len(remove_list)} codes filter out.')
+        print(f"📊 [教学说明] 技术指标过滤完成:")
+        print(f"  - 检查数量: {i}只")
+        print(f"  - 通过检查: {passed_count}只")
+        print(f"  - 移除数量: {len(remove_list)}只")
+        print(f"  - 剩余白名单: {len(self.cache_whitelist)}只")
 
+        # 教学说明：发送过滤结果通知
         if self.messager is not None:
-            self.messager.send_text_as_md(f'[{self.account_id}]{self.strategy_name}:筛除{len(remove_list)}支')
+            self.messager.send_text_as_md(f'🔍 [{self.account_id}]{self.strategy_name}:技术指标过滤移除{len(remove_list)}支')
 
 
 # -----------------------
@@ -106,14 +193,19 @@ class StocksPoolBlackWencai(StockPool):
 # -----------------------
 
 class StocksPoolWhiteWencai(StocksPoolBlackWencai):
+    # 教学说明：问财白名单股票池，使用问财智能选股构建白名单
     def __init__(self, account_id: str, strategy_name: str, parameters, ding_messager: BaseMessager):
         super().__init__(account_id, strategy_name, parameters, ding_messager)
         self.white_prompts = parameters.white_prompts
+        print(f"💡 [教学说明] 初始化问财白名单股票池，选股条件: {self.white_prompts}")
 
     def refresh_white(self):
+        # 教学说明：使用问财API获取白名单股票
         super().refresh_white()
 
+        print(f"🔍 [教学说明] 使用问财API获取白名单股票: {self.white_prompts}")
         codes = get_wencai_codes(self.white_prompts)
+        print(f"📋 [教学说明] 问财返回 {len(codes)}只候选股票")
         self.cache_whitelist.update(codes)
 
 
@@ -123,23 +215,32 @@ class StocksPoolWhiteWencai(StocksPoolBlackWencai):
 
 # 自定义白名单股票列表
 class StocksPoolWhiteCustomSymbol(StocksPoolBlackWencai):
+    # 教学说明：自定义白名单股票池，从文件读取预定义的股票代码
     def __init__(self, account_id: str, strategy_name: str, parameters, ding_messager: BaseMessager):
         super().__init__(account_id, strategy_name, parameters, ding_messager)
         self.white_codes_filepath = parameters.white_codes_filepath
+        print(f"📝 [教学说明] 初始化自定义白名单股票池，文件路径: {self.white_codes_filepath}")
 
     def refresh_white(self):
+        # 教学说明：从文件读取自定义股票代码列表
         super().refresh_white()
 
-        with open(self.white_codes_filepath, 'r') as r:
-            lines = r.readlines()
-            codes = []
-            for line in lines:
-                line = line.replace('\n', '')
-                if len(line) >= 6:
-                    line = line[-6:]  # 只获取最后六位
-                    code = symbol_to_code(line)
-                    codes.append(code)
-            self.cache_whitelist.update(codes)
+        print(f"📂 [教学说明] 从文件读取自定义股票代码: {self.white_codes_filepath}")
+        try:
+            with open(self.white_codes_filepath, 'r') as r:
+                lines = r.readlines()
+                codes = []
+                for line in lines:
+                    line = line.replace('\n', '')
+                    if len(line) >= 6:
+                        line = line[-6:]  # 只获取最后六位
+                        code = symbol_to_code(line)
+                        codes.append(code)
+                print(f"📋 [教学说明] 文件包含 {len(codes)}只股票代码")
+                self.cache_whitelist.update(codes)
+        except Exception as e:
+            print(f"❌ [教学说明] 读取文件失败: {e}")
+            print(f"❌ [教学说明] 白名单为空，将使用空列表")
 
 
 class StocksPoolWhiteCustomTdx(StocksPoolBlackWencai):
